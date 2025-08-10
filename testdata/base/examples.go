@@ -166,4 +166,22 @@ func Incorrect_DeclStmt() error {
 	return eg.Wait()
 }
 
+func NoErrGroupContext() error {
+	ctx := context.Background()
+
+	eg := errgroup.New()
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	eg.Go(func() error {
+		return doSmth(ctx)
+	})
+
+	eg.Go(func() error {
+		return doSmth(ctxWithCancel)
+	})
+
+	return eg.Wait()
+}
+
 func doSmth(_ context.Context) error { return nil }

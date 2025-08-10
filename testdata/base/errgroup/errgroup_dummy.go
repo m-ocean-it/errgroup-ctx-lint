@@ -4,6 +4,10 @@ import "context"
 
 type Group struct{}
 
+func New() *Group {
+	return new(Group)
+}
+
 func (*Group) Go(func() error) {}
 
 func (*Group) Wait() error { return nil }
