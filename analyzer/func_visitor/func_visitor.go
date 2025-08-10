@@ -8,7 +8,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-
 type CommentPosition struct {
 	Filename string
 	Line     int
@@ -18,48 +17,50 @@ type funcVisitor struct {
 	pass        *analysis.Pass
 	nolintLines map[CommentPosition]struct{}
 
-	maybeErrGroupCtx              types.Object
-	maybeCurrentErrGroupGoroutine ast.Node
+	errgroupCtxStack []errgroupCtxStackElement
 }
 
-func New(pass *analysis.Pass, nolintLines map[CommentPosition]struct{}) ast.Visitor {
+type errgroupCtxStackElement struct {
+	o     types.Object
+	depth int
+}
+
+func New(pass *analysis.Pass, nolintLines map[CommentPosition]struct{}) *funcVisitor {
 	return &funcVisitor{
 		pass:        pass,
 		nolintLines: nolintLines,
 	}
 }
 
-func (fv *funcVisitor) Visit(node ast.Node) ast.Visitor {
+func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 	if node == nil {
-		return nil
+		return false
 	}
 
-	return fv.visit(node)
-}
-
-func (fv *funcVisitor) visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
-	case *ast.CallExpr:
-		return fv.visitCallExpr(n, node)
 	case *ast.AssignStmt:
-		return fv.visitAssignStmt(n)
+		fv.visitAssignStmt(n, len(stack))
 	case *ast.DeclStmt:
-		return fv.visitDeclStmt(n)
+		fv.visitDeclStmt(n, len(stack))
+	case *ast.CallExpr:
+		fv.visitCallExpr(n, node)
 	default:
-		return fv
+		return true
 	}
+
+	return true
 }
 
-func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) ast.Visitor {
-	selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
-	if ok && selExpr != nil {
-		if selExpr.Sel.Name == "Go" && isPointerToErrgroup(fv.pass.TypesInfo, selExpr.X) {
-			fv.maybeCurrentErrGroupGoroutine = node
-		}
-	}
+func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) {
+	// selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
+	// if ok && selExpr != nil {
+	// 	if selExpr.Sel.Name == "Go" && isPointerToErrgroup(fv.pass.TypesInfo, selExpr.X) {
+	// 		fv.maybeCurrentErrGroupGoroutine = node
+	// 	}
+	// }
 
-	if fv.maybeErrGroupCtx == nil {
-		return fv
+	if len(fv.errgroupCtxStack) == 0 {
+		return
 	}
 
 	for _, arg := range callExpr.Args {
@@ -68,57 +69,71 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) ast.
 		}
 
 		var isInScope bool
-		if fv.maybeCurrentErrGroupGoroutine != nil &&
-			arg.Pos() > fv.maybeCurrentErrGroupGoroutine.Pos() &&
-			arg.Pos() < fv.maybeCurrentErrGroupGoroutine.End() {
+		var lastCtx types.Object
+
+		if len(fv.errgroupCtxStack) > 0 {
+			lastCtx = fv.errgroupCtxStack[len(fv.errgroupCtxStack)-1].o
 
 			isInScope = true
+			// if arg.Pos() > lastCtx.Pos() && arg.Pos() < lastCtx.Pos() {
+			// 	isInScope = true
+			// }
 		}
 
 		if isInScope {
+			fIdent, ok := callExpr.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return
+			}
+			xIdent, ok := fIdent.X.(*ast.Ident)
+			if !ok {
+				return
+			}
+			if xIdent.Name == "errgroup" || xIdent.Name == "context" {
+				return
+			}
+
 			argIdent, ok := arg.(*ast.Ident)
 			if ok && argIdent != nil {
 				obj := fv.pass.TypesInfo.ObjectOf(argIdent)
 				if obj != nil {
-					if obj.Pos() != fv.maybeErrGroupCtx.Pos() {
+					if obj.Pos() != lastCtx.Pos() {
 						if positionIsNoLint(arg.Pos(), fv.pass.Fset, fv.nolintLines) {
 							continue
 						}
 
 						fv.pass.Reportf(node.Pos(),
-							"passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined")
+							"passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined")
 						// TODO print line of errgroup context
 					}
 				}
 			}
 		}
 	}
-
-	return fv
 }
 
-func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt) ast.Visitor {
+func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 	if len(assignStmt.Rhs) != 1 {
-		return fv
+		return
 	}
 
 	callExpr, ok := assignStmt.Rhs[0].(*ast.CallExpr)
 	if !ok || callExpr == nil {
-		return fv
+		return
 	}
 
 	selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
 	if !ok || selExpr == nil {
-		return fv
+		return
 	}
 
 	selIdent, ok := selExpr.X.(*ast.Ident)
 	if !ok || selIdent == nil {
-		return fv
+		return
 	}
 
 	if selIdent.Name != "errgroup" {
-		return fv
+		return
 	}
 
 	// From here, we assume that any context on the left would be an errgroup context.
@@ -130,23 +145,24 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt) ast.Visitor {
 				continue
 			}
 
-			fv.maybeErrGroupCtx = fv.pass.TypesInfo.ObjectOf(ctxIdent)
+			fv.errgroupCtxStack = append(fv.errgroupCtxStack, errgroupCtxStackElement{
+				o:     fv.pass.TypesInfo.ObjectOf(ctxIdent),
+				depth: depth,
+			})
 
 			break
 		}
 	}
-
-	return fv
 }
 
-func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt) ast.Visitor {
+func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
 	genDecl, ok := declStmt.Decl.(*ast.GenDecl)
 	if !ok || genDecl == nil {
-		return fv
+		return
 	}
 
 	if genDecl.Tok != token.VAR {
-		return fv
+		return
 	}
 
 LOOP:
@@ -183,14 +199,17 @@ LOOP:
 
 		for _, leftIdent := range valSpec.Names {
 			if exprIsContext(fv.pass.TypesInfo, leftIdent) {
-				fv.maybeErrGroupCtx = fv.pass.TypesInfo.ObjectOf(leftIdent)
+				fv.errgroupCtxStack = append(fv.errgroupCtxStack, errgroupCtxStackElement{
+					o:     fv.pass.TypesInfo.ObjectOf(leftIdent),
+					depth: depth,
+				})
 
 				break LOOP
 			}
 		}
 	}
 
-	return fv
+	return
 }
 
 func exprIsContext(typesInfo *types.Info, expr ast.Expr) bool {

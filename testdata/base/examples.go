@@ -44,7 +44,7 @@ func Incorrect_AssignStmt() error {
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
 	})
 
 	eg.Go(func() error {
@@ -140,7 +140,7 @@ func Incorrect_AssignStmt_Nolint_ForOtherLinters() error {
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) //nolint:abc,xyz // // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) //nolint:abc,xyz // // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
 	})
 
 	eg.Go(func() error {
@@ -156,7 +156,7 @@ func Incorrect_DeclStmt() error {
 	var eg, egCtx = errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
 	})
 
 	eg.Go(func() error {
@@ -175,11 +175,11 @@ func NestedErrGroup() error {
 		innerEG, innerEGContext := errgroup.WithContext(egCtx)
 
 		innerEG.Go(func() error {
-			return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+			return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
 		})
 
 		innerEG.Go(func() error {
-			return doSmth(egCtx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+			return doSmth(egCtx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
 		})
 
 		innerEG.Go(func() error {
@@ -190,7 +190,7 @@ func NestedErrGroup() error {
 	})
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
 	})
 
 	return eg.Wait()
