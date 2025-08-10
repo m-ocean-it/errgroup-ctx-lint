@@ -8,25 +8,24 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-const (
-	// TODO respect nolint directive
-	nolintDirective = "nolint"
-	nolintName      = "errgroup-ctx-lint"
-	nolintAll       = "all"
-)
+
+type CommentPosition struct {
+	Filename string
+	Line     int
+}
 
 type funcVisitor struct {
-	pass       *analysis.Pass
-	commentMap ast.CommentMap
+	pass        *analysis.Pass
+	nolintLines map[CommentPosition]struct{}
 
 	maybeErrGroupCtx              types.Object
 	maybeCurrentErrGroupGoroutine ast.Node
 }
 
-func New(pass *analysis.Pass, commentMap ast.CommentMap) ast.Visitor {
+func New(pass *analysis.Pass, nolintLines map[CommentPosition]struct{}) ast.Visitor {
 	return &funcVisitor{
-		pass:       pass,
-		commentMap: commentMap,
+		pass:        pass,
+		nolintLines: nolintLines,
 	}
 }
 
@@ -82,6 +81,10 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) ast.
 				obj := fv.pass.TypesInfo.ObjectOf(argIdent)
 				if obj != nil {
 					if obj.Pos() != fv.maybeErrGroupCtx.Pos() {
+						if positionIsNoLint(arg.Pos(), fv.pass.Fset, fv.nolintLines) {
+							continue
+						}
+
 						fv.pass.Reportf(node.Pos(),
 							"passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined")
 						// TODO print line of errgroup context
@@ -225,4 +228,15 @@ func isPointerToErrgroup(typesInfo *types.Info, expr ast.Expr) bool {
 	}
 
 	return pkg.Name() == "errgroup"
+}
+
+func positionIsNoLint(pos token.Pos, fset *token.FileSet, nolintPositions map[CommentPosition]struct{}) bool {
+	fullPosition := fset.Position(pos)
+
+	_, isNolint := nolintPositions[CommentPosition{
+		Filename: fullPosition.Filename,
+		Line:     fullPosition.Line,
+	}]
+
+	return isNolint
 }

@@ -45,7 +45,102 @@ func Incorrect_AssignStmt() error {
 
 	eg.Go(func() error {
 		return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+	})
 
+	eg.Go(func() error {
+		return doSmth(egCtx)
+	})
+
+	return eg.Wait()
+}
+
+func Incorrect_AssignStmt_Nolint() error {
+	ctx := context.Background()
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return doSmth(ctx) //nolint
+	})
+
+	eg.Go(func() error {
+		return doSmth(egCtx)
+	})
+
+	return eg.Wait()
+}
+
+func Incorrect_AssignStmt_Nolint_ErrGroupCtxLint() error {
+	ctx := context.Background()
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return doSmth(ctx) //nolint:errgroup-ctx-lint
+	})
+
+	eg.Go(func() error {
+		return doSmth(egCtx)
+	})
+
+	return eg.Wait()
+}
+
+func Incorrect_AssignStmt_Nolint_ErrGroupCtxLint_WithOtherLinters() error {
+	ctx := context.Background()
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return doSmth(ctx) //nolint:abc,all,xyz
+	})
+
+	eg.Go(func() error {
+		return doSmth(egCtx)
+	})
+
+	return eg.Wait()
+}
+
+func Incorrect_AssignStmt_Nolint_All() error {
+	ctx := context.Background()
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return doSmth(ctx) //nolint:all
+	})
+
+	eg.Go(func() error {
+		return doSmth(egCtx)
+	})
+
+	return eg.Wait()
+}
+
+func Incorrect_AssignStmt_Nolint_All_WithOtherLinters() error {
+	ctx := context.Background()
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return doSmth(ctx) //nolint:abc,all,xyz
+	})
+
+	eg.Go(func() error {
+		return doSmth(egCtx)
+	})
+
+	return eg.Wait()
+}
+
+func Incorrect_AssignStmt_Nolint_ForOtherLinters() error {
+	ctx := context.Background()
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return doSmth(ctx) //nolint:abc,xyz // // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
 	})
 
 	eg.Go(func() error {
@@ -62,7 +157,6 @@ func Incorrect_DeclStmt() error {
 
 	eg.Go(func() error {
 		return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
-
 	})
 
 	eg.Go(func() error {

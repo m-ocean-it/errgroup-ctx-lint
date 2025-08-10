@@ -21,7 +21,7 @@ eg.Go(func() error {
 ## TODO
 
 - [ ] Describe the project
-- [ ] Respect nolint
+- [x] Respect nolint
 - [ ] Add more complex test cases
 - [ ] Add configuration
     - [ ] custom errgroup package name
