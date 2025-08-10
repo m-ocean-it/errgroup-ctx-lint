@@ -166,6 +166,36 @@ func Incorrect_DeclStmt() error {
 	return eg.Wait()
 }
 
+func NestedErrGroup() error {
+	ctx := context.Background()
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		innerEG, innerEGContext := errgroup.WithContext(egCtx)
+
+		innerEG.Go(func() error {
+			return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+		})
+
+		innerEG.Go(func() error {
+			return doSmth(egCtx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+		})
+
+		innerEG.Go(func() error {
+			return doSmth(innerEGContext)
+		})
+
+		return innerEG.Wait()
+	})
+
+	eg.Go(func() error {
+		return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
+	})
+
+	return eg.Wait()
+}
+
 func NoErrGroupContext() error {
 	ctx := context.Background()
 
