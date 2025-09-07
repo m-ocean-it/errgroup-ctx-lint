@@ -26,14 +26,18 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (any, error) {
 	var (
-		inspector = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-		// nodeFilter  = []ast.Node{(*ast.FuncDecl)(nil)} // TODO optimize?
+		inspector  = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+		nodeFilter = []ast.Node{
+			(*ast.AssignStmt)(nil),
+			(*ast.DeclStmt)(nil),
+			(*ast.CallExpr)(nil),
+		} // TODO optimize?
 		nolintLines = getNolintLines(pass.Files, pass.Fset)
 	)
 
 	thisFuncVisitor := func_visitor.New(pass, nolintLines)
 
-	inspector.WithStack(nil, thisFuncVisitor.Visit)
+	inspector.WithStack(nodeFilter, thisFuncVisitor.Visit)
 
 	return nil, nil
 }

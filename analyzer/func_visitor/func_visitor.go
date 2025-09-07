@@ -32,8 +32,8 @@ func New(pass *analysis.Pass, nolintLines map[CommentPosition]struct{}) *funcVis
 	}
 }
 
-func (fv *funcVisitor) Visit(node ast.Node, _ bool, stack []ast.Node) bool {
-	if node == nil {
+func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
+	if node == nil || !push {
 		return false
 	}
 
