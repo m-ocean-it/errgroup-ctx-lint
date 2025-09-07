@@ -32,7 +32,7 @@ func New(pass *analysis.Pass, nolintLines map[CommentPosition]struct{}) *funcVis
 	}
 }
 
-func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
+func (fv *funcVisitor) Visit(node ast.Node, _ bool, stack []ast.Node) bool {
 	if node == nil {
 		return false
 	}
@@ -44,8 +44,6 @@ func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 		fv.visitDeclStmt(n, len(stack))
 	case *ast.CallExpr:
 		fv.visitCallExpr(n, node)
-	default:
-		return true
 	}
 
 	return true
@@ -82,15 +80,13 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) {
 
 		if isInScope {
 			fIdent, ok := callExpr.Fun.(*ast.SelectorExpr)
-			if !ok {
-				return
-			}
-			xIdent, ok := fIdent.X.(*ast.Ident)
-			if !ok {
-				return
-			}
-			if xIdent.Name == "errgroup" || xIdent.Name == "context" {
-				return
+			if ok {
+				xIdent, ok := fIdent.X.(*ast.Ident)
+				if ok {
+					if xIdent.Name == "errgroup" || xIdent.Name == "context" {
+						return
+					}
+				}
 			}
 
 			argIdent, ok := arg.(*ast.Ident)
