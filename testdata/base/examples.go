@@ -179,7 +179,13 @@ func NestedErrGroup() error {
 		})
 
 		innerEG.Go(func() error {
-			return doSmth(egCtx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+			if err := doSmth(egCtx); err != nil { // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+				return err
+			}
+
+			sd := smthDoer{}
+
+			return sd.doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
 		})
 
 		innerEG.Go(func() error {
@@ -216,3 +222,7 @@ func NestedErrGroup() error {
 // }
 
 func doSmth(_ context.Context) error { return nil }
+
+type smthDoer struct{}
+
+func (sd *smthDoer) doSmth(ctx context.Context) error { return nil }
