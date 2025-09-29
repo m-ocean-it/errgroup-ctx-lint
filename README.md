@@ -24,7 +24,8 @@ eg.Go(func() error {
 - [x] Respect nolint
 - [ ] Add more complex test cases
 - [ ] Add configuration
-    - [ ] custom errgroup package name
+    - [x] custom errgroup package name
     - [ ] custom errgroup goroutine method name
 - [ ] Account for wrapping of errgroup context
+- [ ] suggest (and apply) fixes
 - [ ] PR to golangci-lint
