@@ -243,24 +243,23 @@ func NestedErrGroup() error {
 	return eg.Wait()
 }
 
-// TODO:
-// func NoErrGroupContext() error {
-// 	ctx := context.Background()
+func NoErrGroupContext() error {
+	ctx := context.Background()
 
-// 	eg := errgroup.New()
-// 	ctxWithCancel, cancel := context.WithCancel(ctx)
-// 	defer cancel()
+	eg := errgroup.New()
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-// 	eg.Go(func() error {
-// 		return doSmth(ctx)
-// 	})
+	eg.Go(func() error {
+		return doSmth(ctx)
+	})
 
-// 	eg.Go(func() error {
-// 		return doSmth(ctxWithCancel)
-// 	})
+	eg.Go(func() error {
+		return doSmth(ctxWithCancel)
+	})
 
-// 	return eg.Wait()
-// }
+	return eg.Wait()
+}
 
 func doSmth(_ context.Context) error { return nil }
 

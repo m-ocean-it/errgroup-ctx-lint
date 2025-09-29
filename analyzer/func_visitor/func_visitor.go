@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -24,9 +25,9 @@ type funcVisitor struct {
 type errgroupStack []errgroupStackElement
 
 type errgroupStackElement struct {
-	group types.Object
-	ctx   types.Object
-	depth int
+	groupObj types.Object
+	ctxObj   types.Object
+	depth    int
 }
 
 func (s errgroupStack) Trim(depth int) errgroupStack {
@@ -41,6 +42,16 @@ func (s errgroupStack) Trim(depth int) errgroupStack {
 	}
 
 	return s
+}
+
+func (s errgroupStack) LastCtx() types.Object {
+	for _, elem := range slices.Backward(s) {
+		if elem.ctxObj != nil {
+			return elem.ctxObj
+		}
+	}
+
+	return nil
 }
 
 type goStack []int
@@ -107,7 +118,7 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node, dept
 						xUnderlyingObj := xNamed.Obj()
 						if xUnderlyingObj != nil {
 							for _, stackElem := range fv.errgroupStack {
-								if stackElem.group.Pos() == xUnderlyingObj.Pos() {
+								if stackElem.groupObj.Pos() == xUnderlyingObj.Pos() {
 									fv.goStack = append(fv.goStack, depth)
 
 									return
@@ -124,14 +135,17 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node, dept
 		return
 	}
 
+	lastCtx := fv.errgroupStack.LastCtx()
+	if lastCtx == nil {
+		return
+	}
+
 	for _, arg := range callExpr.Args {
 		if !exprIsContext(fv.pass.TypesInfo, arg) {
 			continue
 		}
 
 		if len(fv.errgroupStack) > 0 {
-			lastCtx := fv.errgroupStack[len(fv.errgroupStack)-1].ctx // TODO: ctx might be missing
-
 			fIdent, ok := callExpr.Fun.(*ast.SelectorExpr)
 			if ok {
 				xIdent, ok := fIdent.X.(*ast.Ident)
@@ -215,7 +229,7 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 
 	fillStackElemFromIdents(&newErrgroupElement, idents, fv.pass.TypesInfo)
 
-	if newErrgroupElement.group != nil {
+	if newErrgroupElement.groupObj != nil {
 		fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
 	}
 }
@@ -223,7 +237,7 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 func fillStackElemFromIdents(elem *errgroupStackElement, idents []*ast.Ident, typesInfo *types.Info) {
 	for _, ident := range idents {
 		if exprIsContext(typesInfo, ident) {
-			elem.ctx = typesInfo.ObjectOf(ident)
+			elem.ctxObj = typesInfo.ObjectOf(ident)
 
 			break
 		}
@@ -264,7 +278,7 @@ func fillStackElemFromIdents(elem *errgroupStackElement, idents []*ast.Ident, ty
 		}
 
 		if leftUnderlyingObj.Name() == "Group" {
-			elem.group = leftUnderlyingObj
+			elem.groupObj = leftUnderlyingObj
 		}
 	}
 }
@@ -316,7 +330,7 @@ func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
 
 		fillStackElemFromIdents(&newErrgroupElement, valSpec.Names, fv.pass.TypesInfo)
 
-		if newErrgroupElement.group != nil {
+		if newErrgroupElement.groupObj != nil {
 			fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
 
 			return
