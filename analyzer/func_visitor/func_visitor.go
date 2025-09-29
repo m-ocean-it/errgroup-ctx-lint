@@ -17,23 +17,42 @@ type funcVisitor struct {
 	pass        *analysis.Pass
 	nolintLines map[CommentPosition]struct{}
 
-	errgroupCtxStack []errgroupCtxStackElement
+	errgroupCtxStack errGroupCtxStack
 }
+
+type errGroupCtxStack []errgroupCtxStackElement
 
 type errgroupCtxStackElement struct {
 	o     types.Object
 	depth int
 }
 
+func (s errGroupCtxStack) Trim(depth int) errGroupCtxStack {
+	if len(s) == 0 {
+		return s
+	}
+
+	for i, elem := range s {
+		if elem.depth > depth {
+			return s[:i]
+		}
+	}
+
+	return s
+}
+
 func New(pass *analysis.Pass, nolintLines map[CommentPosition]struct{}) *funcVisitor {
 	return &funcVisitor{
-		pass:        pass,
-		nolintLines: nolintLines,
+		pass:             pass,
+		nolintLines:      nolintLines,
+		errgroupCtxStack: errGroupCtxStack{},
 	}
 }
 
 func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 	if node == nil || !push {
+		fv.errgroupCtxStack = fv.errgroupCtxStack.Trim(len(stack))
+
 		return false
 	}
 
@@ -55,7 +74,7 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) {
 	// 	if selExpr.Sel.Name == "Go" && isPointerToErrgroup(fv.pass.TypesInfo, selExpr.X) {
 	// 		fv.maybeCurrentErrGroupGoroutine = node
 	// 	}
-	// }
+	// } // TODO: remove?
 
 	if len(fv.errgroupCtxStack) == 0 {
 		return
@@ -75,7 +94,7 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) {
 			isInScope = true
 			// if arg.Pos() > lastCtx.Pos() && arg.Pos() < lastCtx.Pos() {
 			// 	isInScope = true
-			// }
+			// } // TODO: remove?
 		}
 
 		if isInScope {

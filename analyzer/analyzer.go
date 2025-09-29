@@ -28,10 +28,11 @@ func run(pass *analysis.Pass) (any, error) {
 	var (
 		inspector  = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 		nodeFilter = []ast.Node{
+			(*ast.FuncDecl)(nil),
 			(*ast.AssignStmt)(nil),
 			(*ast.DeclStmt)(nil),
 			(*ast.CallExpr)(nil),
-		} // TODO optimize?
+		}
 		nolintLines = getNolintLines(pass.Files, pass.Fset)
 	)
 
