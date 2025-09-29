@@ -185,31 +185,7 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 		return
 	}
 
-	selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
-	if !ok || selExpr == nil {
-		return
-	}
-
-	selIdent, ok := selExpr.X.(*ast.Ident)
-	if !ok || selIdent == nil {
-		return
-	}
-
-	selObj := fv.pass.TypesInfo.Uses[selIdent]
-	if selObj == nil {
-		return
-	}
-	selPkgName, _ := selObj.(*types.PkgName)
-	if selPkgName == nil {
-		return
-	}
-	selPkgNameImported := selPkgName.Imported()
-	if selPkgNameImported == nil {
-		return
-	}
-
-	// TODO: use Path instead of Name?
-	if selPkgNameImported.Name() != "errgroup" {
+	if !callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo) {
 		return
 	}
 
@@ -231,6 +207,51 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 
 	if newErrgroupElement.groupObj != nil {
 		fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
+	}
+}
+
+func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
+	genDecl, ok := declStmt.Decl.(*ast.GenDecl)
+	if !ok || genDecl == nil {
+		return
+	}
+
+	if genDecl.Tok != token.VAR {
+		return
+	}
+
+	newErrgroupElement := errgroupStackElement{
+		depth: depth,
+	}
+
+	for _, spec := range genDecl.Specs {
+		valSpec, ok := spec.(*ast.ValueSpec)
+		if !ok || valSpec == nil {
+			continue
+		}
+
+		if len(valSpec.Values) != 1 {
+			continue
+		}
+
+		callExpr, ok := valSpec.Values[0].(*ast.CallExpr)
+		if !ok || callExpr == nil {
+			continue
+		}
+
+		if !callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo) {
+			continue
+		}
+
+		// From here, we assume that any context on the left would be an errgroup context.
+
+		fillStackElemFromIdents(&newErrgroupElement, valSpec.Names, fv.pass.TypesInfo)
+
+		if newErrgroupElement.groupObj != nil {
+			fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
+
+			return
+		}
 	}
 }
 
@@ -283,61 +304,6 @@ func fillStackElemFromIdents(elem *errgroupStackElement, idents []*ast.Ident, ty
 	}
 }
 
-func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
-	genDecl, ok := declStmt.Decl.(*ast.GenDecl)
-	if !ok || genDecl == nil {
-		return
-	}
-
-	if genDecl.Tok != token.VAR {
-		return
-	}
-
-	newErrgroupElement := errgroupStackElement{
-		depth: depth,
-	}
-
-	for _, spec := range genDecl.Specs {
-		valSpec, ok := spec.(*ast.ValueSpec)
-		if !ok || valSpec == nil {
-			continue
-		}
-
-		if len(valSpec.Values) != 1 {
-			continue
-		}
-
-		callExpr, ok := valSpec.Values[0].(*ast.CallExpr)
-		if !ok || callExpr == nil {
-			continue
-		}
-
-		selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
-		if !ok || selExpr == nil {
-			continue
-		}
-
-		selIdent, ok := selExpr.X.(*ast.Ident)
-		if !ok || selIdent == nil {
-			continue
-		}
-
-		if selIdent.Name != "errgroup" {
-			continue
-		}
-
-		// From here, we assume that any context on the left would be an errgroup context.
-
-		fillStackElemFromIdents(&newErrgroupElement, valSpec.Names, fv.pass.TypesInfo)
-
-		if newErrgroupElement.groupObj != nil {
-			fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
-
-			return
-		}
-	}
-}
-
 func exprIsContext(typesInfo *types.Info, expr ast.Expr) bool {
 	// TODO A more robust approach is probably needed here...
 
@@ -353,4 +319,32 @@ func positionIsNoLint(pos token.Pos, fset *token.FileSet, nolintPositions map[Co
 	}]
 
 	return isNolint
+}
+
+func callExprPkgIsErrgroup(callExpr *ast.CallExpr, typesInfo *types.Info) bool {
+	selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
+	if !ok || selExpr == nil {
+		return false
+	}
+
+	selIdent, ok := selExpr.X.(*ast.Ident)
+	if !ok || selIdent == nil {
+		return false
+	}
+
+	selObj := typesInfo.Uses[selIdent]
+	if selObj == nil {
+		return false
+	}
+	selPkgName, _ := selObj.(*types.PkgName)
+	if selPkgName == nil {
+		return false
+	}
+	selPkgNameImported := selPkgName.Imported()
+	if selPkgNameImported == nil {
+		return false
+	}
+
+	// TODO: use Path instead of Name?
+	return selPkgNameImported.Name() == "errgroup"
 }

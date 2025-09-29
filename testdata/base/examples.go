@@ -91,8 +91,6 @@ func Incorrect_AssignStmt_AliasedImport() error {
 	})
 
 	return eg.Wait()
-
-	// TODO: add same for var decl
 }
 
 func Incorrect_AssignStmt_Nolint() error {
@@ -195,6 +193,22 @@ func Incorrect_DeclStmt() error {
 	ctx := context.Background()
 
 	var eg, egCtx = errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+	})
+
+	eg.Go(func() error {
+		return doSmth(egCtx)
+	})
+
+	return eg.Wait()
+}
+
+func Incorrect_DeclStmt_AliasedImport() error {
+	ctx := context.Background()
+
+	var eg, egCtx = erGr.WithContext(ctx)
 
 	eg.Go(func() error {
 		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
