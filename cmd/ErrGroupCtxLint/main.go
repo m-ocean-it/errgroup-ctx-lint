@@ -8,5 +8,9 @@ import (
 )
 
 func main() {
-	singlechecker.Main(analyzer.Analyzer)
+	singlechecker.Main(
+		analyzer.NewAnalyzerWithConfig(
+			analyzer.DefaultConfig, // TODO: overwrite from command-line args
+		),
+	)
 }

@@ -4,11 +4,15 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
+	"slices"
 
 	"golang.org/x/tools/go/analysis"
 )
 
 type funcVisitor struct {
+	cfg Config
+
 	pass        *analysis.Pass
 	nolintLines map[CommentPosition]struct{}
 
@@ -16,11 +20,19 @@ type funcVisitor struct {
 	goStack       goStack
 }
 
-func New(pass *analysis.Pass, nolintLines map[CommentPosition]struct{}) *funcVisitor {
+func New(
+	pass *analysis.Pass,
+	nolintLines map[CommentPosition]struct{},
+	cfg Config,
+) *funcVisitor {
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("invalid config: %s", err)
+	}
+
 	return &funcVisitor{
-		pass:          pass,
-		nolintLines:   nolintLines,
-		errgroupStack: errgroupStack{},
+		cfg:         cfg,
+		pass:        pass,
+		nolintLines: nolintLines,
 	}
 }
 
@@ -86,7 +98,7 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node, dept
 		return
 	}
 
-	if callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo) || callExprPkgIsContext(callExpr, fv.pass.TypesInfo) {
+	if callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo, fv.cfg) || callExprPkgIsContext(callExpr, fv.pass.TypesInfo) {
 		return
 	}
 
@@ -123,7 +135,7 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 		return
 	}
 
-	if !callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo) {
+	if !callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo, fv.cfg) {
 		return
 	}
 
@@ -177,7 +189,7 @@ func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
 			continue
 		}
 
-		if !callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo) {
+		if !callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo, fv.cfg) {
 			continue
 		}
 
@@ -259,7 +271,7 @@ func positionIsNoLint(pos token.Pos, fset *token.FileSet, nolintPositions map[Co
 	return isNolint
 }
 
-func callExprPkgIsErrgroup(callExpr *ast.CallExpr, typesInfo *types.Info) bool {
+func callExprPkgIsErrgroup(callExpr *ast.CallExpr, typesInfo *types.Info, cfg Config) bool {
 	selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
 	if !ok || selExpr == nil {
 		return false
@@ -283,8 +295,11 @@ func callExprPkgIsErrgroup(callExpr *ast.CallExpr, typesInfo *types.Info) bool {
 		return false
 	}
 
-	// TODO: use Path instead of Name?
-	return selPkgNameImported.Name() == "errgroup"
+	return errgroupPkgPathIsEnabled(cfg, selPkgNameImported.Path())
+}
+
+func errgroupPkgPathIsEnabled(cfg Config, packagePath string) bool {
+	return slices.Contains(cfg.ErrgroupPackagePaths, packagePath)
 }
 
 func callExprPkgIsContext(callExpr *ast.CallExpr, typesInfo *types.Info) bool {

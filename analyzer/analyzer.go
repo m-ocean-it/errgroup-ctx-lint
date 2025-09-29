@@ -17,30 +17,44 @@ const (
 	nolintAll       = "all"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name:     "ErrGroupCtxLint",
-	Doc:      "Checks that the errgroup's context is passed to operations within the errgroup's goroutines",
-	Run:      run,
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+var DefaultConfig = func_visitor.Config{
+	ErrgroupPackagePaths: []string{
+		"golang.org/x/sync/errgroup",
+	},
 }
 
-func run(pass *analysis.Pass) (any, error) {
-	var (
-		inspector  = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-		nodeFilter = []ast.Node{
-			(*ast.FuncDecl)(nil),
-			(*ast.AssignStmt)(nil),
-			(*ast.DeclStmt)(nil),
-			(*ast.CallExpr)(nil),
-		}
-		nolintLines = getNolintLines(pass.Files, pass.Fset)
-	)
+func NewAnalyzerWithConfig(cfg func_visitor.Config) *analysis.Analyzer {
+	return newAnalyzer(cfg)
+}
 
-	thisFuncVisitor := func_visitor.New(pass, nolintLines)
+func newAnalyzer(cfg func_visitor.Config) *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name:     "ErrGroupCtxLint",
+		Doc:      "Checks that the errgroup's context is passed to operations within the errgroup's goroutines",
+		Run:      run(cfg),
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+	}
+}
 
-	inspector.WithStack(nodeFilter, thisFuncVisitor.Visit)
+func run(cfg func_visitor.Config) func(*analysis.Pass) (any, error) {
+	return func(pass *analysis.Pass) (any, error) {
+		var (
+			inspector  = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+			nodeFilter = []ast.Node{
+				(*ast.FuncDecl)(nil),
+				(*ast.AssignStmt)(nil),
+				(*ast.DeclStmt)(nil),
+				(*ast.CallExpr)(nil),
+			}
+			nolintLines = getNolintLines(pass.Files, pass.Fset)
+		)
 
-	return nil, nil
+		thisFuncVisitor := func_visitor.New(pass, nolintLines, cfg)
+
+		inspector.WithStack(nodeFilter, thisFuncVisitor.Visit)
+
+		return nil, nil
+	}
 }
 
 func getNolintLines(files []*ast.File, fset *token.FileSet) map[func_visitor.CommentPosition]struct{} {
