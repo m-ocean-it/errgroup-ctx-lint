@@ -257,6 +257,42 @@ func NestedErrGroup() error {
 	return eg.Wait()
 }
 
+func NestedErrGroup_AliasedImport() error {
+	ctx := context.Background()
+
+	eg, egCtx := erGr.WithContext(ctx)
+
+	eg.Go(func() error {
+		innerEG, innerEGContext := erGr.WithContext(egCtx)
+
+		innerEG.Go(func() error {
+			return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		})
+
+		innerEG.Go(func() error {
+			if err := doSmth(egCtx); err != nil { // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+				return err
+			}
+
+			sd := smthDoer{}
+
+			return sd.doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		})
+
+		innerEG.Go(func() error {
+			return doSmth(innerEGContext)
+		})
+
+		return innerEG.Wait()
+	})
+
+	eg.Go(func() error {
+		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+	})
+
+	return eg.Wait()
+}
+
 func NoErrGroupContext() error {
 	ctx := context.Background()
 

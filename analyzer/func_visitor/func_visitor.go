@@ -140,35 +140,27 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node, dept
 		return
 	}
 
+	if callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo) || callExprPkgIsContext(callExpr, fv.pass.TypesInfo) {
+		return
+	}
+
 	for _, arg := range callExpr.Args {
 		if !exprIsContext(fv.pass.TypesInfo, arg) {
 			continue
 		}
 
-		if len(fv.errgroupStack) > 0 {
-			fIdent, ok := callExpr.Fun.(*ast.SelectorExpr)
-			if ok {
-				xIdent, ok := fIdent.X.(*ast.Ident)
-				if ok {
-					if xIdent.Name == "errgroup" || xIdent.Name == "context" {
-						return
+		argIdent, ok := arg.(*ast.Ident)
+		if ok && argIdent != nil {
+			obj := fv.pass.TypesInfo.ObjectOf(argIdent)
+			if obj != nil {
+				if obj.Pos() != lastCtx.Pos() {
+					if positionIsNoLint(arg.Pos(), fv.pass.Fset, fv.nolintLines) {
+						continue
 					}
-				}
-			}
 
-			argIdent, ok := arg.(*ast.Ident)
-			if ok && argIdent != nil {
-				obj := fv.pass.TypesInfo.ObjectOf(argIdent)
-				if obj != nil {
-					if obj.Pos() != lastCtx.Pos() {
-						if positionIsNoLint(arg.Pos(), fv.pass.Fset, fv.nolintLines) {
-							continue
-						}
-
-						fv.pass.Reportf(node.Pos(),
-							"passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined")
-						// TODO print line of errgroup context
-					}
+					fv.pass.Reportf(node.Pos(),
+						"passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined")
+					// TODO print line of errgroup context
 				}
 			}
 		}
@@ -347,4 +339,32 @@ func callExprPkgIsErrgroup(callExpr *ast.CallExpr, typesInfo *types.Info) bool {
 
 	// TODO: use Path instead of Name?
 	return selPkgNameImported.Name() == "errgroup"
+}
+
+func callExprPkgIsContext(callExpr *ast.CallExpr, typesInfo *types.Info) bool {
+	selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
+	if !ok || selExpr == nil {
+		return false
+	}
+
+	selIdent, ok := selExpr.X.(*ast.Ident)
+	if !ok || selIdent == nil {
+		return false
+	}
+
+	selObj := typesInfo.Uses[selIdent]
+	if selObj == nil {
+		return false
+	}
+	selPkgName, _ := selObj.(*types.PkgName)
+	if selPkgName == nil {
+		return false
+	}
+	selPkgNameImported := selPkgName.Imported()
+	if selPkgNameImported == nil {
+		return false
+	}
+
+	// TODO: use Path instead of Name?
+	return selPkgNameImported.Name() == "context"
 }
