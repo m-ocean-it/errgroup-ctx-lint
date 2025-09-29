@@ -17,17 +17,19 @@ type funcVisitor struct {
 	pass        *analysis.Pass
 	nolintLines map[CommentPosition]struct{}
 
-	errgroupCtxStack errGroupCtxStack
+	errgroupStack errgroupStack
+	goStack       goStack
 }
 
-type errGroupCtxStack []errgroupCtxStackElement
+type errgroupStack []errgroupStackElement
 
-type errgroupCtxStackElement struct {
-	o     types.Object
+type errgroupStackElement struct {
+	group types.Object
+	ctx   types.Object
 	depth int
 }
 
-func (s errGroupCtxStack) Trim(depth int) errGroupCtxStack {
+func (s errgroupStack) Trim(depth int) errgroupStack {
 	if len(s) == 0 {
 		return s
 	}
@@ -41,17 +43,34 @@ func (s errGroupCtxStack) Trim(depth int) errGroupCtxStack {
 	return s
 }
 
+type goStack []int
+
+func (gs goStack) Trim(depth int) goStack {
+	if len(gs) == 0 {
+		return gs
+	}
+
+	for i, d := range gs {
+		if d > depth {
+			return gs[:i]
+		}
+	}
+
+	return gs
+}
+
 func New(pass *analysis.Pass, nolintLines map[CommentPosition]struct{}) *funcVisitor {
 	return &funcVisitor{
-		pass:             pass,
-		nolintLines:      nolintLines,
-		errgroupCtxStack: errGroupCtxStack{},
+		pass:          pass,
+		nolintLines:   nolintLines,
+		errgroupStack: errgroupStack{},
 	}
 }
 
 func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 	if node == nil || !push {
-		fv.errgroupCtxStack = fv.errgroupCtxStack.Trim(len(stack))
+		fv.errgroupStack = fv.errgroupStack.Trim(len(stack))
+		fv.goStack = fv.goStack.Trim(len(stack))
 
 		return false
 	}
@@ -62,14 +81,46 @@ func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 	case *ast.DeclStmt:
 		fv.visitDeclStmt(n, len(stack))
 	case *ast.CallExpr:
-		fv.visitCallExpr(n, node)
+		fv.visitCallExpr(n, node, len(stack))
 	}
 
 	return true
 }
 
-func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) {
-	if len(fv.errgroupCtxStack) == 0 {
+func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node, depth int) {
+	if len(fv.errgroupStack) == 0 {
+		return
+	}
+
+	funSelExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
+	if ok {
+		_ = funSelExpr
+		xIdent := funSelExpr.X.(*ast.Ident)
+		if xIdent != nil {
+			xObj := fv.pass.TypesInfo.TypeOf(xIdent)
+			xPtr, _ := xObj.(*types.Pointer)
+			if xPtr != nil {
+				xElem := xPtr.Elem()
+				if xElem != nil {
+					xNamed, _ := xElem.(*types.Named)
+					if xNamed != nil {
+						xUnderlyingObj := xNamed.Obj()
+						if xUnderlyingObj != nil {
+							for _, stackElem := range fv.errgroupStack {
+								if stackElem.group.Pos() == xUnderlyingObj.Pos() {
+									fv.goStack = append(fv.goStack, depth)
+
+									return
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if len(fv.goStack) == 0 {
 		return
 	}
 
@@ -78,8 +129,8 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) {
 			continue
 		}
 
-		if len(fv.errgroupCtxStack) > 0 {
-			lastCtx := fv.errgroupCtxStack[len(fv.errgroupCtxStack)-1].o
+		if len(fv.errgroupStack) > 0 {
+			lastCtx := fv.errgroupStack[len(fv.errgroupStack)-1].ctx // TODO: ctx might be missing
 
 			fIdent, ok := callExpr.Fun.(*ast.SelectorExpr)
 			if ok {
@@ -130,25 +181,90 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 		return
 	}
 
-	if selIdent.Name != "errgroup" {
+	selObj := fv.pass.TypesInfo.Uses[selIdent]
+	if selObj == nil {
+		return
+	}
+	selPkgName, _ := selObj.(*types.PkgName)
+	if selPkgName == nil {
+		return
+	}
+	selPkgNameImported := selPkgName.Imported()
+	if selPkgNameImported == nil {
+		return
+	}
+
+	// TODO: use Path instead of Name?
+	if selPkgNameImported.Name() != "errgroup" {
 		return
 	}
 
 	// From here, we assume that any context on the left would be an errgroup context.
 
-	for _, leftExpr := range assignStmt.Lhs {
-		if exprIsContext(fv.pass.TypesInfo, leftExpr) {
-			ctxIdent, ok := leftExpr.(*ast.Ident)
-			if !ok || ctxIdent == nil {
-				continue
-			}
+	newErrgroupElement := errgroupStackElement{
+		depth: depth,
+	}
 
-			fv.errgroupCtxStack = append(fv.errgroupCtxStack, errgroupCtxStackElement{
-				o:     fv.pass.TypesInfo.ObjectOf(ctxIdent),
-				depth: depth,
-			})
+	var idents []*ast.Ident
+	for _, e := range assignStmt.Lhs {
+		id, _ := e.(*ast.Ident)
+		if id != nil {
+			idents = append(idents, id)
+		}
+	}
+
+	fillStackElemFromIdents(&newErrgroupElement, idents, fv.pass.TypesInfo)
+
+	if newErrgroupElement.group != nil {
+		fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
+	}
+}
+
+func fillStackElemFromIdents(elem *errgroupStackElement, idents []*ast.Ident, typesInfo *types.Info) {
+	for _, ident := range idents {
+		if exprIsContext(typesInfo, ident) {
+			elem.ctx = typesInfo.ObjectOf(ident)
 
 			break
+		}
+
+		leftObj := typesInfo.ObjectOf(ident)
+		if leftObj == nil {
+			continue
+		}
+
+		leftVar, _ := leftObj.(*types.Var)
+		if leftVar == nil {
+			continue
+		}
+
+		leftType := leftVar.Type()
+		if leftType == nil {
+			continue
+		}
+
+		leftPtr, _ := leftType.(*types.Pointer)
+		if leftPtr == nil {
+			continue
+		}
+
+		leftElem := leftPtr.Elem()
+		if leftElem == nil {
+			continue
+		}
+
+		leftNamed, _ := leftElem.(*types.Named)
+		if leftNamed == nil {
+			continue
+		}
+
+		leftUnderlyingObj := leftNamed.Obj()
+		if leftUnderlyingObj == nil {
+			continue
+		}
+
+		if leftUnderlyingObj.Name() == "Group" {
+			elem.group = leftUnderlyingObj
 		}
 	}
 }
@@ -163,7 +279,10 @@ func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
 		return
 	}
 
-LOOP:
+	newErrgroupElement := errgroupStackElement{
+		depth: depth,
+	}
+
 	for _, spec := range genDecl.Specs {
 		valSpec, ok := spec.(*ast.ValueSpec)
 		if !ok || valSpec == nil {
@@ -195,15 +314,12 @@ LOOP:
 
 		// From here, we assume that any context on the left would be an errgroup context.
 
-		for _, leftIdent := range valSpec.Names {
-			if exprIsContext(fv.pass.TypesInfo, leftIdent) {
-				fv.errgroupCtxStack = append(fv.errgroupCtxStack, errgroupCtxStackElement{
-					o:     fv.pass.TypesInfo.ObjectOf(leftIdent),
-					depth: depth,
-				})
+		fillStackElemFromIdents(&newErrgroupElement, valSpec.Names, fv.pass.TypesInfo)
 
-				break LOOP
-			}
+		if newErrgroupElement.group != nil {
+			fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
+
+			return
 		}
 	}
 }
