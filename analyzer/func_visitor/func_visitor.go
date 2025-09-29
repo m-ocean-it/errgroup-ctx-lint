@@ -64,7 +64,7 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node, dept
 	funSelExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
 	if ok {
 		_ = funSelExpr
-		xIdent := funSelExpr.X.(*ast.Ident)
+		xIdent, _ := funSelExpr.X.(*ast.Ident)
 		if xIdent != nil {
 			xObj := fv.pass.TypesInfo.TypeOf(xIdent)
 			xPtr, _ := xObj.(*types.Pointer)
