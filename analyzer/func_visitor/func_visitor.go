@@ -69,13 +69,6 @@ func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 }
 
 func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) {
-	// selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
-	// if ok && selExpr != nil {
-	// 	if selExpr.Sel.Name == "Go" && isPointerToErrgroup(fv.pass.TypesInfo, selExpr.X) {
-	// 		fv.maybeCurrentErrGroupGoroutine = node
-	// 	}
-	// } // TODO: remove?
-
 	if len(fv.errgroupCtxStack) == 0 {
 		return
 	}
@@ -85,19 +78,9 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node) {
 			continue
 		}
 
-		var isInScope bool
-		var lastCtx types.Object
-
 		if len(fv.errgroupCtxStack) > 0 {
-			lastCtx = fv.errgroupCtxStack[len(fv.errgroupCtxStack)-1].o
+			lastCtx := fv.errgroupCtxStack[len(fv.errgroupCtxStack)-1].o
 
-			isInScope = true
-			// if arg.Pos() > lastCtx.Pos() && arg.Pos() < lastCtx.Pos() {
-			// 	isInScope = true
-			// } // TODO: remove?
-		}
-
-		if isInScope {
 			fIdent, ok := callExpr.Fun.(*ast.SelectorExpr)
 			if ok {
 				xIdent, ok := fIdent.X.(*ast.Ident)
@@ -223,45 +206,12 @@ LOOP:
 			}
 		}
 	}
-
-	return
 }
 
 func exprIsContext(typesInfo *types.Info, expr ast.Expr) bool {
 	// TODO A more robust approach is probably needed here...
 
 	return typesInfo.TypeOf(expr).String() == "context.Context"
-}
-
-func isPointerToErrgroup(typesInfo *types.Info, expr ast.Expr) bool {
-	typeOfExpr := typesInfo.TypeOf(expr)
-
-	ptr, ok := typeOfExpr.(*types.Pointer)
-	if !ok || ptr == nil {
-		return false
-	}
-
-	elem := ptr.Elem()
-
-	n, ok := elem.(*types.Named)
-	if !ok {
-		return false
-	}
-
-	o := n.Obj()
-	if o == nil {
-		return false
-	}
-	if o.Name() != "Group" {
-		return false
-	}
-
-	pkg := o.Pkg()
-	if pkg == nil {
-		return false
-	}
-
-	return pkg.Name() == "errgroup"
 }
 
 func positionIsNoLint(pos token.Pos, fset *token.FileSet, nolintPositions map[CommentPosition]struct{}) bool {
