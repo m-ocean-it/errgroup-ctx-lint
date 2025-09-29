@@ -25,7 +25,7 @@ func New(
 	nolintLines map[CommentPosition]struct{},
 	cfg Config,
 ) *funcVisitor {
-	if err := cfg.Validate(); err != nil {
+	if err := cfg.Prepare(); err != nil {
 		log.Fatalf("invalid config: %s", err)
 	}
 

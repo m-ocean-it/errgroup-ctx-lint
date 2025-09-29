@@ -1,7 +1,6 @@
 package func_visitor
 
 import (
-	"errors"
 	"go/types"
 	"slices"
 )
@@ -57,16 +56,4 @@ func (gs goStack) Trim(depth int) goStack {
 	}
 
 	return gs
-}
-
-type Config struct {
-	ErrgroupPackagePaths []string
-}
-
-func (c Config) Validate() error {
-	if len(c.ErrgroupPackagePaths) == 0 {
-		return errors.New("at least one errgroup package path must be specified")
-	}
-
-	return nil
 }
