@@ -8,24 +8,21 @@ This linter catches cases when, within an error-group goroutine, a non-errgroup 
 eg, egCtx := errgroup.WithContext(ctx)
 
 eg.Go(func() error {
-	return doSmth(ctx) // want "passing non-errgroup context to function withing errgroup-goroutine while there is an errgroup-context defined"
-
+	return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 })
 
 eg.Go(func() error {
-	return doSmth(egCtx)
+	return doSmth(egCtx) // Correctly uses the context returned by "errgroup.WithContext"
 })
 
+eg.TryTo(func() error {
+	return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+})
 ```
 
 ## TODO
 
 - [ ] Describe the project
-- [x] Respect nolint
-- [ ] Add more complex test cases
 - [ ] Add configuration
-    - [x] custom errgroup package name
     - [ ] custom errgroup goroutine method name
-- [ ] Account for wrapping of errgroup context
-- [ ] suggest (and apply) fixes
 - [ ] PR to golangci-lint
