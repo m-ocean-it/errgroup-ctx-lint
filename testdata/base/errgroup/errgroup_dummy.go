@@ -10,6 +10,10 @@ func New() *Group {
 
 func (*Group) Go(func() error) {}
 
+func (*Group) TryGo(func() error) bool { return true }
+
+func (*Group) SetLimit(int) {}
+
 func (*Group) Wait() error { return nil }
 
 func WithContext(ctx context.Context) (*Group, context.Context) {

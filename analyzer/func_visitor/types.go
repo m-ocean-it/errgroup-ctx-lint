@@ -2,7 +2,6 @@ package func_visitor
 
 import (
 	"go/types"
-	"slices"
 )
 
 type CommentPosition struct {
@@ -15,6 +14,7 @@ type errgroupStack []errgroupStackElement
 type errgroupStackElement struct {
 	groupObj types.Object
 	ctxObj   types.Object
+	ctxName  string
 	depth    int
 }
 
@@ -32,28 +32,14 @@ func (s errgroupStack) Trim(depth int) errgroupStack {
 	return s
 }
 
-func (s errgroupStack) LastCtx() types.Object {
-	for _, elem := range slices.Backward(s) {
-		if elem.ctxObj != nil {
-			return elem.ctxObj
+// FindByGroup returns the most recent stack element matching the given group
+// variable object.
+func (s errgroupStack) FindByGroup(groupObj types.Object) *errgroupStackElement {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i].groupObj == groupObj {
+			return &s[i]
 		}
 	}
 
 	return nil
-}
-
-type goStack []int
-
-func (gs goStack) Trim(depth int) goStack {
-	if len(gs) == 0 {
-		return gs
-	}
-
-	for i, d := range gs {
-		if d > depth {
-			return gs[:i]
-		}
-	}
-
-	return gs
 }

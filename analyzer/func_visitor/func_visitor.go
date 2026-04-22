@@ -17,7 +17,6 @@ type funcVisitor struct {
 	nolintLines map[CommentPosition]struct{}
 
 	errgroupStack errgroupStack
-	goStack       goStack
 }
 
 func New(
@@ -39,7 +38,6 @@ func New(
 func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 	if node == nil || !push {
 		fv.errgroupStack = fv.errgroupStack.Trim(len(stack))
-		fv.goStack = fv.goStack.Trim(len(stack))
 
 		return false
 	}
@@ -50,79 +48,46 @@ func (fv *funcVisitor) Visit(node ast.Node, push bool, stack []ast.Node) bool {
 	case *ast.DeclStmt:
 		fv.visitDeclStmt(n, len(stack))
 	case *ast.CallExpr:
-		fv.visitCallExpr(n, node, len(stack))
+		fv.visitCallExpr(n)
 	}
 
 	return true
 }
 
-func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr, node ast.Node, depth int) {
+func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr) {
 	if len(fv.errgroupStack) == 0 {
 		return
 	}
 
-	funSelExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
-	if ok {
-		_ = funSelExpr
-		xIdent, _ := funSelExpr.X.(*ast.Ident)
-		if xIdent != nil {
-			xObj := fv.pass.TypesInfo.TypeOf(xIdent)
-			xPtr, _ := xObj.(*types.Pointer)
-			if xPtr != nil {
-				xElem := xPtr.Elem()
-				if xElem != nil {
-					xNamed, _ := xElem.(*types.Named)
-					if xNamed != nil {
-						xUnderlyingObj := xNamed.Obj()
-						if xUnderlyingObj != nil {
-							for _, stackElem := range fv.errgroupStack {
-								if stackElem.groupObj.Pos() == xUnderlyingObj.Pos() {
-									fv.goStack = append(fv.goStack, depth)
-
-									return
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if len(fv.goStack) == 0 {
+	if !callIsErrgroupGoOrTryGo(callExpr, fv.pass.TypesInfo, fv.cfg) {
 		return
 	}
 
-	lastCtx := fv.errgroupStack.LastCtx()
-	if lastCtx == nil {
+	sel := callExpr.Fun.(*ast.SelectorExpr) // safe: callIsErrgroupGoOrTryGo verified this
+	xIdent, ok := sel.X.(*ast.Ident)
+	if !ok {
 		return
 	}
 
-	if callExprPkgIsErrgroup(callExpr, fv.pass.TypesInfo, fv.cfg) || callExprPkgIsContext(callExpr, fv.pass.TypesInfo) {
+	recvObj := fv.pass.TypesInfo.ObjectOf(xIdent)
+	if recvObj == nil {
 		return
 	}
 
-	for _, arg := range callExpr.Args {
-		if !exprIsContext(fv.pass.TypesInfo, arg) {
-			continue
-		}
-
-		argIdent, ok := arg.(*ast.Ident)
-		if ok && argIdent != nil {
-			obj := fv.pass.TypesInfo.ObjectOf(argIdent)
-			if obj != nil {
-				if obj.Pos() != lastCtx.Pos() {
-					if positionIsNoLint(arg.Pos(), fv.pass.Fset, fv.nolintLines) {
-						continue
-					}
-
-					fv.pass.Reportf(node.Pos(),
-						"passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined")
-					// TODO print line of errgroup context
-				}
-			}
-		}
+	elem := fv.errgroupStack.FindByGroup(recvObj)
+	if elem == nil {
+		return
 	}
+
+	if len(callExpr.Args) != 1 {
+		return
+	}
+	funcLit, ok := callExpr.Args[0].(*ast.FuncLit)
+	if !ok {
+		return
+	}
+
+	fv.checkClosureForContexts(funcLit, elem)
 }
 
 func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
@@ -139,8 +104,6 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 		return
 	}
 
-	// From here, we assume that any context on the left would be an errgroup context.
-
 	newErrgroupElement := errgroupStackElement{
 		depth: depth,
 	}
@@ -153,7 +116,7 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 		}
 	}
 
-	fillStackElemFromIdents(&newErrgroupElement, idents, fv.pass.TypesInfo)
+	fillStackElemFromIdents(&newErrgroupElement, idents, fv.pass.TypesInfo, fv.cfg)
 
 	if newErrgroupElement.groupObj != nil {
 		fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
@@ -193,9 +156,7 @@ func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
 			continue
 		}
 
-		// From here, we assume that any context on the left would be an errgroup context.
-
-		fillStackElemFromIdents(&newErrgroupElement, valSpec.Names, fv.pass.TypesInfo)
+		fillStackElemFromIdents(&newErrgroupElement, valSpec.Names, fv.pass.TypesInfo, fv.cfg)
 
 		if newErrgroupElement.groupObj != nil {
 			fv.errgroupStack = append(fv.errgroupStack, newErrgroupElement)
@@ -205,10 +166,16 @@ func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
 	}
 }
 
-func fillStackElemFromIdents(elem *errgroupStackElement, idents []*ast.Ident, typesInfo *types.Info) {
+func fillStackElemFromIdents(elem *errgroupStackElement, idents []*ast.Ident, typesInfo *types.Info, cfg Config) {
 	for _, ident := range idents {
-		if exprIsContext(typesInfo, ident) {
+		if ident.Name == "_" {
+			continue
+		}
+
+		typ := typesInfo.TypeOf(ident)
+		if typ != nil && isContextType(typ) {
 			elem.ctxObj = typesInfo.ObjectOf(ident)
+			elem.ctxName = ident.Name
 
 			break
 		}
@@ -248,16 +215,24 @@ func fillStackElemFromIdents(elem *errgroupStackElement, idents []*ast.Ident, ty
 			continue
 		}
 
-		if leftUnderlyingObj.Name() == "Group" {
-			elem.groupObj = leftUnderlyingObj
+		if leftUnderlyingObj.Name() == "Group" && leftUnderlyingObj.Pkg() != nil && errgroupPkgPathIsEnabled(cfg, leftUnderlyingObj.Pkg().Path()) {
+			elem.groupObj = leftObj
 		}
 	}
 }
 
-func exprIsContext(typesInfo *types.Info, expr ast.Expr) bool {
-	// TODO A more robust approach is probably needed here...
+func isContextType(typ types.Type) bool {
+	if typ == nil {
+		return false
+	}
 
-	return typesInfo.TypeOf(expr).String() == "context.Context"
+	named, ok := types.Unalias(typ).(*types.Named)
+	if !ok {
+		return false
+	}
+
+	obj := named.Obj()
+	return obj.Pkg() != nil && obj.Pkg().Path() == "context" && obj.Name() == "Context"
 }
 
 func positionIsNoLint(pos token.Pos, fset *token.FileSet, nolintPositions map[CommentPosition]struct{}) bool {
@@ -302,30 +277,104 @@ func errgroupPkgPathIsEnabled(cfg Config, packagePath string) bool {
 	return slices.Contains(cfg.ErrgroupPackagePaths, packagePath)
 }
 
-func callExprPkgIsContext(callExpr *ast.CallExpr, typesInfo *types.Info) bool {
-	selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
-	if !ok || selExpr == nil {
+func (fv *funcVisitor) checkClosureForContexts(funcLit *ast.FuncLit, elem *errgroupStackElement) {
+	if elem.ctxObj == nil {
+		return
+	}
+
+	closureStart := funcLit.Pos()
+	closureEnd := funcLit.End()
+
+	// Identify func lits that are arguments to errgroup Go/TryGo calls,
+	// these will be independently analyzed by the inspector, so we skip them
+	skipFuncLits := make(map[*ast.FuncLit]struct{})
+	ast.Inspect(funcLit.Body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if callIsErrgroupGoOrTryGo(call, fv.pass.TypesInfo, fv.cfg) {
+			if len(call.Args) == 1 {
+				if fl, ok := call.Args[0].(*ast.FuncLit); ok {
+					skipFuncLits[fl] = struct{}{}
+				}
+			}
+		}
+		return true
+	})
+
+	derivedName := elem.ctxName
+	if derivedName == "" {
+		derivedName = "<errgroup context>"
+	}
+
+	// Check all identifiers, skipping nested errgroup callback bodies
+	ast.Inspect(funcLit.Body, func(n ast.Node) bool {
+		if fl, ok := n.(*ast.FuncLit); ok {
+			if _, skip := skipFuncLits[fl]; skip {
+				return false
+			}
+		}
+
+		ident, ok := n.(*ast.Ident)
+		if !ok {
+			return true
+		}
+
+		obj := fv.pass.TypesInfo.Uses[ident]
+		if obj == nil {
+			return true
+		}
+
+		if _, ok := obj.(*types.Var); !ok {
+			return true
+		}
+
+		if !isContextType(obj.Type()) {
+			return true
+		}
+
+		// Allow the errgroup-derived context itself
+		if elem.ctxObj != nil && obj == elem.ctxObj {
+			return true
+		}
+
+		// Allow contexts defined within the closure body
+		if obj.Pos() >= closureStart && obj.Pos() < closureEnd {
+			return true
+		}
+
+		if positionIsNoLint(ident.Pos(), fv.pass.Fset, fv.nolintLines) {
+			return true
+		}
+
+		fv.pass.Reportf(ident.Pos(),
+			"errgroup callback must not reference outer context %q, use the errgroup-derived context %q",
+			ident.Name, derivedName)
+
+		return true
+	})
+}
+
+func callIsErrgroupGoOrTryGo(callExpr *ast.CallExpr, typesInfo *types.Info, cfg Config) bool {
+	sel, ok := callExpr.Fun.(*ast.SelectorExpr)
+	if !ok {
 		return false
 	}
 
-	selIdent, ok := selExpr.X.(*ast.Ident)
-	if !ok || selIdent == nil {
+	if sel.Sel.Name != "Go" && sel.Sel.Name != "TryGo" {
 		return false
 	}
 
-	selObj := typesInfo.Uses[selIdent]
-	if selObj == nil {
-		return false
-	}
-	selPkgName, _ := selObj.(*types.PkgName)
-	if selPkgName == nil {
-		return false
-	}
-	selPkgNameImported := selPkgName.Imported()
-	if selPkgNameImported == nil {
+	obj := typesInfo.Uses[sel.Sel]
+	if obj == nil {
 		return false
 	}
 
-	// TODO: use Path instead of Name?
-	return selPkgNameImported.Name() == "context"
+	fn, ok := obj.(*types.Func)
+	if !ok {
+		return false
+	}
+
+	return fn.Pkg() != nil && errgroupPkgPathIsEnabled(cfg, fn.Pkg().Path())
 }

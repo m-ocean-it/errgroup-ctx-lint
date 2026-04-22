@@ -67,7 +67,7 @@ func Incorrect_AssignStmt() error {
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -83,7 +83,7 @@ func Incorrect_AssignStmt_AliasedImport() error {
 	eg, egCtx := erGr.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -179,7 +179,7 @@ func Incorrect_AssignStmt_Nolint_ForOtherLinters() error {
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) //nolint:abc,xyz // // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) //nolint:abc,xyz // // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -195,7 +195,7 @@ func Incorrect_DeclStmt() error {
 	var eg, egCtx = errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -211,7 +211,7 @@ func Incorrect_DeclStmt_AliasedImport() error {
 	var eg, egCtx = erGr.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -230,17 +230,17 @@ func NestedErrGroup() error {
 		innerEG, innerEGContext := errgroup.WithContext(egCtx)
 
 		innerEG.Go(func() error {
-			return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+			return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
 		})
 
 		innerEG.Go(func() error {
-			if err := doSmth(egCtx); err != nil { // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+			if err := doSmth(egCtx); err != nil { // want `errgroup callback must not reference outer context "egCtx", use the errgroup-derived context "innerEGContext"`
 				return err
 			}
 
 			sd := smthDoer{}
 
-			return sd.doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+			return sd.doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
 		})
 
 		innerEG.Go(func() error {
@@ -251,7 +251,7 @@ func NestedErrGroup() error {
 	})
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	return eg.Wait()
@@ -266,17 +266,17 @@ func NestedErrGroup_AliasedImport() error {
 		innerEG, innerEGContext := erGr.WithContext(egCtx)
 
 		innerEG.Go(func() error {
-			return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+			return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
 		})
 
 		innerEG.Go(func() error {
-			if err := doSmth(egCtx); err != nil { // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+			if err := doSmth(egCtx); err != nil { // want `errgroup callback must not reference outer context "egCtx", use the errgroup-derived context "innerEGContext"`
 				return err
 			}
 
 			sd := smthDoer{}
 
-			return sd.doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+			return sd.doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
 		})
 
 		innerEG.Go(func() error {
@@ -287,7 +287,7 @@ func NestedErrGroup_AliasedImport() error {
 	})
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want "passing non-errgroup context to function within errgroup-goroutine while there is an errgroup-context defined"
+		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	return eg.Wait()
