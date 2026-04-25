@@ -68,7 +68,7 @@ func Incorrect_AssignStmt() error {
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -84,7 +84,7 @@ func Incorrect_AssignStmt_AliasedImport() error {
 	eg, egCtx := erGr.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -180,7 +180,7 @@ func Incorrect_AssignStmt_Nolint_ForOtherLinters() error {
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) //nolint:abc,xyz // // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return doSmth(ctx) //nolint:abc,xyz // // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -196,7 +196,7 @@ func Incorrect_DeclStmt() error {
 	var eg, egCtx = errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -212,7 +212,7 @@ func Incorrect_DeclStmt_AliasedImport() error {
 	var eg, egCtx = erGr.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	eg.Go(func() error {
@@ -231,17 +231,17 @@ func NestedErrGroup() error {
 		innerEG, innerEGContext := errgroup.WithContext(egCtx)
 
 		innerEG.Go(func() error {
-			return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
+			return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
 		})
 
 		innerEG.Go(func() error {
-			if err := doSmth(egCtx); err != nil { // want `errgroup callback must not reference outer context "egCtx", use the errgroup-derived context "innerEGContext"`
+			if err := doSmth(egCtx); err != nil { // want `errgroup callback should probably not reference outer context "egCtx", use the errgroup-derived context "innerEGContext"`
 				return err
 			}
 
 			sd := smthDoer{}
 
-			return sd.doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
+			return sd.doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
 		})
 
 		innerEG.Go(func() error {
@@ -252,7 +252,7 @@ func NestedErrGroup() error {
 	})
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	return eg.Wait()
@@ -267,17 +267,17 @@ func NestedErrGroup_AliasedImport() error {
 		innerEG, innerEGContext := erGr.WithContext(egCtx)
 
 		innerEG.Go(func() error {
-			return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
+			return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
 		})
 
 		innerEG.Go(func() error {
-			if err := doSmth(egCtx); err != nil { // want `errgroup callback must not reference outer context "egCtx", use the errgroup-derived context "innerEGContext"`
+			if err := doSmth(egCtx); err != nil { // want `errgroup callback should probably not reference outer context "egCtx", use the errgroup-derived context "innerEGContext"`
 				return err
 			}
 
 			sd := smthDoer{}
 
-			return sd.doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
+			return sd.doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "innerEGContext"`
 		})
 
 		innerEG.Go(func() error {
@@ -288,7 +288,7 @@ func NestedErrGroup_AliasedImport() error {
 	})
 
 	eg.Go(func() error {
-		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 
 	return eg.Wait()
@@ -319,7 +319,7 @@ func TryGo_BasicViolation() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.TryGo(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -330,8 +330,8 @@ func TryGo_MultipleViolations() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.TryGo(func() error {
-		<-ctx.Done()     // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
-		return ctx.Err() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done()     // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return ctx.Err() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 	eg.Wait()
 }
@@ -341,11 +341,11 @@ func MixedGoAndTryGo() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.TryGo(func() error {
-		return ctx.Err() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return ctx.Err() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 	eg.Wait()
 }
@@ -357,7 +357,7 @@ func CtxDone() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -368,7 +368,7 @@ func CtxErr() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		return ctx.Err() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return ctx.Err() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 	eg.Wait()
 }
@@ -378,7 +378,7 @@ func CtxDeadline() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		_, _ = ctx.Deadline() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		_, _ = ctx.Deadline() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -389,7 +389,7 @@ func CtxValue() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		_ = ctx.Value("key") // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		_ = ctx.Value("key") // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -403,7 +403,7 @@ func ChannelSend() {
 	_ = egCtx
 	ch := make(chan context.Context, 1)
 	eg.Go(func() error {
-		ch <- ctx // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		ch <- ctx // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -415,7 +415,7 @@ func SliceLiteral() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		ctxs := []context.Context{ctx} // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		ctxs := []context.Context{ctx} // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		_ = ctxs
 		return nil
 	})
@@ -427,7 +427,7 @@ func MapLiteral() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		m := map[string]context.Context{"key": ctx} // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		m := map[string]context.Context{"key": ctx} // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		_ = m
 		return nil
 	})
@@ -439,7 +439,7 @@ func AssignToAny() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		var v any = ctx // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		var v any = ctx // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		_ = v
 		return nil
 	})
@@ -453,8 +453,8 @@ func MultipleViolationsOneLine() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done()     // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
-		return ctx.Err() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done()     // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return ctx.Err() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 	eg.Wait()
 }
@@ -464,11 +464,11 @@ func MultipleGoCallbacks() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Go(func() error {
-		return ctx.Err() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return ctx.Err() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 	eg.Wait()
 }
@@ -481,7 +481,7 @@ func NestedGoroutine() {
 	_ = egCtx
 	eg.Go(func() error {
 		go func() {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		}()
 		return nil
 	})
@@ -494,7 +494,7 @@ func NestedDefer() {
 	_ = egCtx
 	eg.Go(func() error {
 		defer func() {
-			_ = ctx.Err() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			_ = ctx.Err() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		}()
 		return nil
 	})
@@ -507,7 +507,7 @@ func NestedAnonFunc() {
 	_ = egCtx
 	eg.Go(func() error {
 		fn := func() {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		}
 		fn()
 		return nil
@@ -526,8 +526,8 @@ func SelectPattern() {
 	eg.Go(func() error {
 		for {
 			select {
-			case <-ctx.Done(): // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
-				return ctx.Err() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			case <-ctx.Done(): // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+				return ctx.Err() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			case <-t.C:
 			}
 		}
@@ -542,7 +542,7 @@ func ContextWithTimeout() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		childCtx, cancel := context.WithTimeout(ctx, time.Second) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		childCtx, cancel := context.WithTimeout(ctx, time.Second) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		defer cancel()
 		<-childCtx.Done()
 		return nil
@@ -555,7 +555,7 @@ func ContextWithValue() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		valCtx := context.WithValue(ctx, "key", "val") // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		valCtx := context.WithValue(ctx, "key", "val") // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		_ = valCtx
 		return nil
 	})
@@ -570,7 +570,7 @@ func MethodCall() {
 	_ = egCtx
 	c := &client{}
 	eg.Go(func() error {
-		return c.DoSomething(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return c.DoSomething(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 	eg.Wait()
 }
@@ -583,8 +583,8 @@ func MultipleOuterContexts() {
 	eg, egCtx := errgroup.WithContext(ctx1)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx1.Done() // want `errgroup callback must not reference outer context "ctx1", use the errgroup-derived context "egCtx"`
-		<-ctx2.Done() // want `errgroup callback must not reference outer context "ctx2", use the errgroup-derived context "egCtx"`
+		<-ctx1.Done() // want `errgroup callback should probably not reference outer context "ctx1", use the errgroup-derived context "egCtx"`
+		<-ctx2.Done() // want `errgroup callback should probably not reference outer context "ctx2", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -596,7 +596,7 @@ func FuncParamCtx(outerCtx context.Context) {
 	eg, egCtx := errgroup.WithContext(outerCtx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-outerCtx.Done() // want `errgroup callback must not reference outer context "outerCtx", use the errgroup-derived context "egCtx"`
+		<-outerCtx.Done() // want `errgroup callback should probably not reference outer context "outerCtx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -610,7 +610,7 @@ func CtxAlias() {
 	eg, egCtx := errgroup.WithContext(parentCtx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -623,7 +623,7 @@ func MixedUsage() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		<-egCtx.Done()
-		return ctx.Err() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return ctx.Err() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 	eg.Wait()
 }
@@ -637,12 +637,12 @@ func TwoErrgroups_WrongCtx() {
 	_ = egCtx2
 
 	eg1.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx1"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx1"`
 		return nil
 	})
 
 	eg2.Go(func() error {
-		<-egCtx1.Done() // want `errgroup callback must not reference outer context "egCtx1", use the errgroup-derived context "egCtx2"`
+		<-egCtx1.Done() // want `errgroup callback should probably not reference outer context "egCtx1", use the errgroup-derived context "egCtx2"`
 		return nil
 	})
 
@@ -655,11 +655,11 @@ func CrossErrgroup() {
 	eg1, egCtx1 := errgroup.WithContext(ctx)
 	eg2, egCtx2 := errgroup.WithContext(ctx)
 	eg1.Go(func() error {
-		<-egCtx2.Done() // want `errgroup callback must not reference outer context "egCtx2", use the errgroup-derived context "egCtx1"`
+		<-egCtx2.Done() // want `errgroup callback should probably not reference outer context "egCtx2", use the errgroup-derived context "egCtx1"`
 		return nil
 	})
 	eg2.Go(func() error {
-		<-egCtx1.Done() // want `errgroup callback must not reference outer context "egCtx1", use the errgroup-derived context "egCtx2"`
+		<-egCtx1.Done() // want `errgroup callback should probably not reference outer context "egCtx1", use the errgroup-derived context "egCtx2"`
 		return nil
 	})
 	eg1.Wait()
@@ -674,7 +674,7 @@ func ReassignedErrgroup() {
 	eg, egCtx2 := errgroup.WithContext(egCtx1)
 	_ = egCtx2
 	eg.Go(func() error {
-		<-egCtx1.Done() // want `errgroup callback must not reference outer context "egCtx1", use the errgroup-derived context "egCtx2"`
+		<-egCtx1.Done() // want `errgroup callback should probably not reference outer context "egCtx1", use the errgroup-derived context "egCtx2"`
 		return nil
 	})
 	eg.Wait()
@@ -688,7 +688,7 @@ func GoInLoop() {
 	_ = egCtx
 	for i := 0; i < 5; i++ {
 		eg.Go(func() error {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		})
 	}
@@ -703,7 +703,7 @@ func GoConditional(cond bool) {
 	_ = egCtx
 	if cond {
 		eg.Go(func() error {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		})
 	}
@@ -721,7 +721,7 @@ func DeeplyNested() {
 			if i > 0 {
 				switch {
 				default:
-					<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+					<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 					return nil
 				}
 			}
@@ -739,7 +739,7 @@ func WithContextInIf(cond bool) {
 		eg, egCtx := errgroup.WithContext(ctx)
 		_ = egCtx
 		eg.Go(func() error {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		})
 		eg.Wait()
@@ -755,7 +755,7 @@ func ReassignedCtx() {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -768,7 +768,7 @@ func CtxInPanic() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		if ctx.Err() != nil { // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		if ctx.Err() != nil { // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			panic("context done")
 		}
 		return nil
@@ -783,7 +783,7 @@ func AfterFunc() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		context.AfterFunc(ctx, func() {}) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		context.AfterFunc(ctx, func() {}) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -796,7 +796,7 @@ func TypeSwitch() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		var v any = ctx // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		var v any = ctx // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		switch v.(type) {
 		case context.Context:
 		}
@@ -812,7 +812,7 @@ func PassedToFunc(f func(context.Context)) {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		f(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		f(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -826,7 +826,7 @@ func OtherOuterContext() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-outerCtx.Done() // want `errgroup callback must not reference outer context "outerCtx", use the errgroup-derived context "egCtx"`
+		<-outerCtx.Done() // want `errgroup callback should probably not reference outer context "outerCtx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -840,7 +840,7 @@ func TryGo_NestedGoroutine() {
 	_ = egCtx
 	eg.TryGo(func() error {
 		go func() {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		}()
 		return nil
 	})
@@ -865,7 +865,7 @@ func Nolint_ForOtherLinters_CtxDone() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() //nolint:abc,xyz // // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() //nolint:abc,xyz // // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1329,7 +1329,7 @@ func StructLiteral() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		s := ctxHolder{ctx} // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		s := ctxHolder{ctx} // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		_ = s
 		return nil
 	})
@@ -1342,7 +1342,7 @@ func MapKey() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		m := map[context.Context]string{ctx: "v"} // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		m := map[context.Context]string{ctx: "v"} // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		_ = m
 		return nil
 	})
@@ -1355,7 +1355,7 @@ func ReturnCtx() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		_ = ctx // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		_ = ctx // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1367,7 +1367,7 @@ func GoStmtInsideCallback() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		go doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		go doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1380,7 +1380,7 @@ func MultipleCtxArgs() {
 	eg, egCtx := errgroup.WithContext(ctx1)
 	_ = egCtx
 	eg.Go(func() error {
-		return doSmth2(ctx1, ctx2) // want `errgroup callback must not reference outer context "ctx1", use the errgroup-derived context "egCtx"` `errgroup callback must not reference outer context "ctx2", use the errgroup-derived context "egCtx"`
+		return doSmth2(ctx1, ctx2) // want `errgroup callback should probably not reference outer context "ctx1", use the errgroup-derived context "egCtx"` `errgroup callback should probably not reference outer context "ctx2", use the errgroup-derived context "egCtx"`
 	})
 	eg.Wait()
 }
@@ -1392,7 +1392,7 @@ func ClosureReturnedFromCallback() {
 	_ = egCtx
 	eg.Go(func() error {
 		fn := func() context.Context {
-			return ctx // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			return ctx // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		}
 		_ = fn
 		return nil
@@ -1406,7 +1406,7 @@ func ContextWithCancel() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		childCtx, cancel := context.WithCancel(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		childCtx, cancel := context.WithCancel(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		defer cancel()
 		<-childCtx.Done()
 		return nil
@@ -1420,7 +1420,7 @@ func ContextWithDeadline() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		childCtx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Hour)) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		childCtx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Hour)) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		defer cancel()
 		<-childCtx.Done()
 		return nil
@@ -1434,7 +1434,7 @@ func (sd *smthDoer) ErrgroupInMethod() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1446,7 +1446,7 @@ func WithContextTODO() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1460,7 +1460,7 @@ func WithContextInSwitch(n int) {
 		eg, egCtx := errgroup.WithContext(ctx)
 		_ = egCtx
 		eg.Go(func() error {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		})
 		eg.Wait()
@@ -1474,7 +1474,7 @@ func WithContextInLoop() {
 		eg, egCtx := errgroup.WithContext(ctx)
 		_ = egCtx
 		eg.Go(func() error {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		})
 		eg.Wait()
@@ -1491,9 +1491,9 @@ func TripleNestedErrGroup() {
 			eg3, egCtx3 := errgroup.WithContext(egCtx2)
 			_ = egCtx3
 			eg3.Go(func() error {
-				<-ctx.Done()    // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx3"`
-				<-egCtx1.Done() // want `errgroup callback must not reference outer context "egCtx1", use the errgroup-derived context "egCtx3"`
-				<-egCtx2.Done() // want `errgroup callback must not reference outer context "egCtx2", use the errgroup-derived context "egCtx3"`
+				<-ctx.Done()    // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx3"`
+				<-egCtx1.Done() // want `errgroup callback should probably not reference outer context "egCtx1", use the errgroup-derived context "egCtx3"`
+				<-egCtx2.Done() // want `errgroup callback should probably not reference outer context "egCtx2", use the errgroup-derived context "egCtx3"`
 				return nil
 			})
 			return eg3.Wait()
@@ -1510,7 +1510,7 @@ func CtxViaIntermediateVar() {
 	_ = egCtx
 	saved := ctx
 	eg.Go(func() error {
-		<-saved.Done() // want `errgroup callback must not reference outer context "saved", use the errgroup-derived context "egCtx"`
+		<-saved.Done() // want `errgroup callback should probably not reference outer context "saved", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1527,7 +1527,7 @@ func CtxInForRange() {
 			_ = c
 		}
 		// Still flag direct outer ctx reference.
-		_ = ctx // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		_ = ctx // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1538,7 +1538,7 @@ func CtxComparison() {
 	ctx := context.Background()
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		if egCtx == ctx { // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		if egCtx == ctx { // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		}
 		return nil
@@ -1554,7 +1554,7 @@ func MixedCallbacks() {
 		return doSmth(egCtx) // correct
 	})
 	eg.Go(func() error {
-		return doSmth(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		return doSmth(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 	})
 	eg.Go(func() error {
 		return doSmth(egCtx) // correct
@@ -1589,7 +1589,7 @@ func Neg_NewAndWithContext() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1629,7 +1629,7 @@ func PkgLevelCtx() {
 	eg, egCtx := errgroup.WithContext(pkgCtx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-pkgCtx.Done() // want `errgroup callback must not reference outer context "pkgCtx", use the errgroup-derived context "egCtx"`
+		<-pkgCtx.Done() // want `errgroup callback should probably not reference outer context "pkgCtx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1642,7 +1642,7 @@ func WithContextInDefer() {
 		eg, egCtx := errgroup.WithContext(ctx)
 		_ = egCtx
 		eg.Go(func() error {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		})
 		eg.Wait()
@@ -1664,7 +1664,7 @@ func VarDeclCtx() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1677,7 +1677,7 @@ func TwoErrgroupsSeparateScopes() {
 		eg, egCtx := errgroup.WithContext(ctx)
 		_ = egCtx
 		eg.Go(func() error {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		})
 		eg.Wait()
@@ -1686,7 +1686,7 @@ func TwoErrgroupsSeparateScopes() {
 		eg, egCtx := errgroup.WithContext(ctx)
 		_ = egCtx
 		eg.Go(func() error {
-			<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+			<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 			return nil
 		})
 		eg.Wait()
@@ -1699,7 +1699,7 @@ func VariadicCtxArg() {
 	eg, egCtx := errgroup.WithContext(ctx)
 	_ = egCtx
 	eg.Go(func() error {
-		doSmthVariadic(ctx) // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		doSmthVariadic(ctx) // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()
@@ -1723,7 +1723,7 @@ func TryGoWithSetLimit() {
 	_ = egCtx
 	eg.SetLimit(3)
 	eg.TryGo(func() error {
-		<-ctx.Done() // want `errgroup callback must not reference outer context "ctx", use the errgroup-derived context "egCtx"`
+		<-ctx.Done() // want `errgroup callback should probably not reference outer context "ctx", use the errgroup-derived context "egCtx"`
 		return nil
 	})
 	eg.Wait()

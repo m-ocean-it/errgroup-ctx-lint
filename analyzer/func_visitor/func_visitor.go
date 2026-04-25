@@ -349,7 +349,7 @@ func (fv *funcVisitor) checkClosureForContexts(funcLit *ast.FuncLit, elem *errgr
 		}
 
 		fv.pass.Reportf(ident.Pos(),
-			"errgroup callback must not reference outer context %q, use the errgroup-derived context %q",
+			"errgroup callback should probably not reference outer context %q, use the errgroup-derived context %q",
 			ident.Name, derivedName)
 
 		return true
