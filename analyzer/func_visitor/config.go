@@ -5,7 +5,7 @@ import "errors"
 const DefaultPkgPath = "golang.org/x/sync/errgroup"
 
 type Config struct {
-	ErrgroupPackagePaths []string
+	ErrgroupPackagePaths []string `json:"errgroup_package_paths"`
 }
 
 func (c *Config) Prepare() error {

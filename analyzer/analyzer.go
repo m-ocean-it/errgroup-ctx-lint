@@ -31,12 +31,12 @@ func newAnalyzer(cfg func_visitor.Config) *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name:     "errgroupctx",
 		Doc:      "Checks that errgroup closures use the context derived from a corresponding errgroup",
-		Run:      run(cfg),
+		Run:      Run(cfg),
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	}
 }
 
-func run(cfg func_visitor.Config) func(*analysis.Pass) (any, error) {
+func Run(cfg func_visitor.Config) func(*analysis.Pass) (any, error) {
 	return func(pass *analysis.Pass) (any, error) {
 		var (
 			inspector  = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
