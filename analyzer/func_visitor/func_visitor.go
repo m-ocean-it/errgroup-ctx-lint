@@ -59,7 +59,8 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr) {
 		return
 	}
 
-	if !callIsErrgroupGoOrTryGo(callExpr, fv.pass.TypesInfo, fv.cfg) {
+	errgroupClosure := tryGetErrgroupClosureFromCallExpr(callExpr, fv.pass.TypesInfo, fv.cfg)
+	if errgroupClosure == nil {
 		return
 	}
 
@@ -79,15 +80,7 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr) {
 		return
 	}
 
-	if len(callExpr.Args) != 1 {
-		return
-	}
-	funcLit, ok := callExpr.Args[0].(*ast.FuncLit)
-	if !ok {
-		return
-	}
-
-	fv.checkClosureForContexts(funcLit, elem)
+	fv.checkClosureForContexts(errgroupClosure, elem)
 }
 
 func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
@@ -293,13 +286,11 @@ func (fv *funcVisitor) checkClosureForContexts(funcLit *ast.FuncLit, elem *errgr
 		if !ok {
 			return true
 		}
-		if callIsErrgroupGoOrTryGo(call, fv.pass.TypesInfo, fv.cfg) {
-			if len(call.Args) == 1 {
-				if fl, ok := call.Args[0].(*ast.FuncLit); ok {
-					skipFuncLits[fl] = struct{}{}
-				}
-			}
+
+		if innerErrgroupClosure := tryGetErrgroupClosureFromCallExpr(call, fv.pass.TypesInfo, fv.cfg); innerErrgroupClosure != nil {
+			skipFuncLits[innerErrgroupClosure] = struct{}{}
 		}
+
 		return true
 	})
 
@@ -356,25 +347,39 @@ func (fv *funcVisitor) checkClosureForContexts(funcLit *ast.FuncLit, elem *errgr
 	})
 }
 
-func callIsErrgroupGoOrTryGo(callExpr *ast.CallExpr, typesInfo *types.Info, cfg Config) bool {
+func tryGetErrgroupClosureFromCallExpr(callExpr *ast.CallExpr, typesInfo *types.Info, cfg Config) *ast.FuncLit {
 	sel, ok := callExpr.Fun.(*ast.SelectorExpr)
 	if !ok {
-		return false
+		return nil
 	}
 
 	if sel.Sel.Name != "Go" && sel.Sel.Name != "TryGo" {
-		return false
+		return nil
 	}
 
 	obj := typesInfo.Uses[sel.Sel]
 	if obj == nil {
-		return false
+		return nil
 	}
 
 	fn, ok := obj.(*types.Func)
 	if !ok {
-		return false
+		return nil
 	}
 
-	return fn.Pkg() != nil && errgroupPkgPathIsEnabled(cfg, fn.Pkg().Path())
+	if fn.Pkg() == nil {
+		return nil
+	}
+
+	if !errgroupPkgPathIsEnabled(cfg, fn.Pkg().Path()) {
+		return nil
+	}
+
+	if len(callExpr.Args) != 1 {
+		return nil
+	}
+
+	funcLit, _ := callExpr.Args[0].(*ast.FuncLit)
+
+	return funcLit
 }
