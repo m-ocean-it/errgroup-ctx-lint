@@ -13,7 +13,7 @@ import (
 
 const (
 	nolintDirective = "nolint"
-	nolintName      = "errgroup-ctx-lint"
+	nolintName      = "errgroupctx"
 	nolintAll       = "all"
 )
 
@@ -29,7 +29,7 @@ func NewAnalyzerWithConfig(cfg func_visitor.Config) *analysis.Analyzer {
 
 func newAnalyzer(cfg func_visitor.Config) *analysis.Analyzer {
 	return &analysis.Analyzer{
-		Name:     "ErrGroupCtxLint",
+		Name:     "errgroupctx",
 		Doc:      "Checks that errgroup closures use the context derived from a corresponding errgroup",
 		Run:      run(cfg),
 		Requires: []*analysis.Analyzer{inspect.Analyzer},

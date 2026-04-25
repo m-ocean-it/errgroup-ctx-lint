@@ -116,7 +116,7 @@ func Incorrect_AssignStmt_Nolint_ErrGroupCtxLint() error {
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) //nolint:errgroup-ctx-lint
+		return doSmth(ctx) //nolint:errgroupctx
 	})
 
 	eg.Go(func() error {
@@ -132,7 +132,7 @@ func Incorrect_AssignStmt_Nolint_ErrGroupCtxLint_WithOtherLinters() error {
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return doSmth(ctx) //nolint:abc,all,xyz
+		return doSmth(ctx) //nolint:abc,errgroupctx,xyz
 	})
 
 	eg.Go(func() error {
