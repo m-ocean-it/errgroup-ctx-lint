@@ -9,7 +9,10 @@ import (
 )
 
 func main() {
-	pkgPaths := flag.String("pkg_paths", "", "TODO") // TODO
+	pkgPaths := flag.String("pkgs",
+		"golang.org/x/sync/errgroup", // Default.
+		"Comma-separated list of packages that provide an errgroup. Use in case you're dealing with a non-standard errgroup library.",
+	)
 
 	flag.Parse()
 
