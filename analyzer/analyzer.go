@@ -30,7 +30,7 @@ func NewAnalyzerWithConfig(cfg func_visitor.Config) *analysis.Analyzer {
 func newAnalyzer(cfg func_visitor.Config) *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name:     "ErrGroupCtxLint",
-		Doc:      "Checks that the errgroup's context is passed to operations within the errgroup's goroutines",
+		Doc:      "Checks that errgroup closures use the context derived from a corresponding errgroup",
 		Run:      run(cfg),
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	}
