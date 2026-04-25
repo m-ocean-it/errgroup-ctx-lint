@@ -15,8 +15,14 @@ func main() {
 
 	cfg := analyzer.DefaultConfig
 
-	if *pkgPaths != "" {
-		cfg.ErrgroupPackagePaths = strings.Split(*pkgPaths, ",")
+	if strings.TrimSpace(*pkgPaths) != "" {
+		cfg.ErrgroupPackagePaths = []string{}
+		for p := range strings.SplitSeq(*pkgPaths, ",") {
+			cfg.ErrgroupPackagePaths = append(
+				cfg.ErrgroupPackagePaths,
+				strings.TrimSpace(p),
+			)
+		}
 	}
 
 	singlechecker.Main(
