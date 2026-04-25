@@ -2,6 +2,7 @@ package func_visitor
 
 import (
 	"go/types"
+	"slices"
 )
 
 type CommentPosition struct {
@@ -35,9 +36,9 @@ func (s errgroupStack) Trim(depth int) errgroupStack {
 // FindByGroup returns the most recent stack element matching the given group
 // variable object.
 func (s errgroupStack) FindByGroup(groupObj types.Object) *errgroupStackElement {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i].groupObj == groupObj {
-			return &s[i]
+	for _, frame := range slices.Backward(s) {
+		if frame.groupObj == groupObj {
+			return &frame
 		}
 	}
 
