@@ -20,6 +20,8 @@ eg.TryTo(func() error {
 })
 ```
 
+A *lot* more cases are covered in the [`examples.go`](testdata/base/examples.go) file!
+
 ## TODO
 
 - [ ] Describe the project
