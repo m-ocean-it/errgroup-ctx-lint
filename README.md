@@ -23,3 +23,48 @@ eg.TryTo(func() error {
 
 A *lot* more cases are covered in the [`examples.go`](testdata/base/examples.go) file!
 
+
+## [Golangci-lint](https://github.com/golangci/golangci-lint) plugin guide
+
+Read the [official guide](https://golangci-lint.run/docs/plugins/module-plugins/).
+
+Prepare a `.custom-gcl.yml` file:
+```yml
+version: v2.11.4
+plugins:
+  - module: "github.com/m-ocean-it/errgroup-ctx-lint"
+    import: "github.com/m-ocean-it/errgroup-ctx-lint"
+    version: latest
+```
+
+Run
+```sh
+golangci-lint custom -v
+```
+
+A custom binary of `golangci-lint` would appear at path `./custom-gcl`.
+
+Prepare a `.golangci.yml` config file (or amend the existing one):
+```yml
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errgroupctx
+  settings:
+    custom:
+      errgroupctx:
+        type: "module"
+        settings:
+          errgroup_package_paths:
+            # Specify alternative errgroup packages here, if needed, like so:
+            # - golang.org/x/sync/errgroup
+            # - errgroup1
+            # - foobar/errgroup2
+```
+
+Run the resulted binary like the original `golangci-lint`:
+```sh
+./custom-gcl run ./...
+```
