@@ -14,7 +14,7 @@ clean:
 	rm -rf ./bin
 
 ./bin/errgroup-ctx-lint: $(SRC) | ./bin
-	go build -o ./bin/errgroup-ctx-lint ./cmd/ErrGroupCtxLint
+	go build -o ./bin/errgroup-ctx-lint ./cmd/errgroup-ctx-lint
 
 ./bin:
 	mkdir -p ./bin
