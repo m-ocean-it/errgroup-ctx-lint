@@ -25,6 +25,10 @@ func DefaultConfig() func_visitor.Config {
 	}
 }
 
+func NewAnalyzer() *analysis.Analyzer {
+	return NewAnalyzerWithConfig(DefaultConfig())
+}
+
 func NewAnalyzerWithConfig(cfg func_visitor.Config) *analysis.Analyzer {
 	return newAnalyzer(cfg)
 }
