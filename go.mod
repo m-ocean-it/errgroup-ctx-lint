@@ -1,6 +1,6 @@
 module github.com/m-ocean-it/errgroup-ctx-lint
 
-go 1.25.9
+go 1.25.0
 
 require (
 	github.com/golangci/plugin-module-register v0.1.2
