@@ -21,7 +21,7 @@ eg.TryTo(func() error {
 })
 ```
 
-A *lot* more cases are covered in the [`examples.go`](testdata/base/examples.go) file!
+A *lot* more cases are covered in the [`examples.go`](analyzer/testdata/base/examples.go) file!
 
 
 ## [Golangci-lint](https://github.com/golangci/golangci-lint) plugin guide
