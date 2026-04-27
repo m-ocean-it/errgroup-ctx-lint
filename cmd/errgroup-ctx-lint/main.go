@@ -16,7 +16,7 @@ func main() {
 
 	flag.Parse()
 
-	cfg := analyzer.DefaultConfig
+	cfg := analyzer.DefaultConfig()
 
 	if strings.TrimSpace(*pkgPaths) != "" {
 		cfg.ErrgroupPackagePaths = []string{}

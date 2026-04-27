@@ -17,10 +17,16 @@ const (
 	nolintAll       = "all"
 )
 
-var DefaultConfig = func_visitor.Config{
-	ErrgroupPackagePaths: []string{
-		"golang.org/x/sync/errgroup",
-	},
+func DefaultConfig() func_visitor.Config {
+	return func_visitor.Config{
+		ErrgroupPackagePaths: []string{
+			"golang.org/x/sync/errgroup",
+		},
+	}
+}
+
+func NewAnalyzer() *analysis.Analyzer {
+	return NewAnalyzerWithConfig(DefaultConfig())
 }
 
 func NewAnalyzerWithConfig(cfg func_visitor.Config) *analysis.Analyzer {
