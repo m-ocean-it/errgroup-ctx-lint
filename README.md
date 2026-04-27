@@ -26,7 +26,7 @@ A *lot* more cases are covered in the [`examples.go`](testdata/base/examples.go)
 
 ## Installation
 ```sh
-go install 'github.com/m-ocean-it/errgroup-ctx-lint/cmd/errgroup-ctx-lint@v0.3.0'
+go install 'github.com/m-ocean-it/errgroup-ctx-lint/cmd/errgroup-ctx-lint@latest'
 ```
 
 
