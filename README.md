@@ -24,6 +24,23 @@ eg.TryTo(func() error {
 A *lot* more cases are covered in the [`examples.go`](testdata/base/examples.go) file!
 
 
+## Installation
+```sh
+go install 'github.com/m-ocean-it/errgroup-ctx-lint/cmd/errgroup-ctx-lint@v0.3.0'
+```
+
+
+## Usage
+```sh
+errgroup-ctx-lint ./...
+```
+
+Or specify alternative `errgroup`-packages separated with commas:
+```sh
+errgroup-ctx-lint -pkgs 'golang.org/x/sync/errgroup,github.com/johejo/semerrgroup,some.org/platform/errgroup/v2' ./...
+```
+
+
 ## [Golangci-lint](https://github.com/golangci/golangci-lint) plugin guide
 
 Read the [official guide](https://golangci-lint.run/docs/plugins/module-plugins/).
