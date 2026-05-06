@@ -6,5 +6,5 @@ import (
 )
 
 func NewAnalyzer() *analysis.Analyzer {
-	return analyzer.NewAnalyzerWithConfig(analyzer.DefaultConfig)
+	return analyzer.NewAnalyzerWithConfig(analyzer.DefaultConfig())
 }

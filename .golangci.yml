@@ -1,0 +1,19 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    - cyclop
+    - depguard
+    - lll
+    - varnamelen
+    - noinlineerr
+    - err113
+    - funlen
+    - tagliatelle
+    - wsl
+    - wsl_v5
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true

@@ -29,9 +29,10 @@ func New(
 	}
 
 	return &funcVisitor{
-		cfg:         cfg,
-		pass:        pass,
-		nolintLines: nolintLines,
+		cfg:           cfg,
+		pass:          pass,
+		nolintLines:   nolintLines,
+		errgroupStack: nil,
 	}
 }
 
@@ -64,7 +65,8 @@ func (fv *funcVisitor) visitCallExpr(callExpr *ast.CallExpr) {
 		return
 	}
 
-	sel := callExpr.Fun.(*ast.SelectorExpr) // safe: callIsErrgroupGoOrTryGo verified this
+	sel := callExpr.Fun.(*ast.SelectorExpr) //nolint:forcetypeassert // tryGetErrgroupClosureFromCallExpr verified this
+
 	xIdent, ok := sel.X.(*ast.Ident)
 	if !ok {
 		return
@@ -98,7 +100,10 @@ func (fv *funcVisitor) visitAssignStmt(assignStmt *ast.AssignStmt, depth int) {
 	}
 
 	newErrgroupElement := errgroupStackElement{
-		depth: depth,
+		depth:    depth,
+		groupObj: nil,
+		ctxObj:   nil,
+		ctxName:  "",
 	}
 
 	var idents []*ast.Ident
@@ -127,7 +132,10 @@ func (fv *funcVisitor) visitDeclStmt(declStmt *ast.DeclStmt, depth int) {
 	}
 
 	newErrgroupElement := errgroupStackElement{
-		depth: depth,
+		depth:    depth,
+		groupObj: nil,
+		ctxObj:   nil,
+		ctxName:  "",
 	}
 
 	for _, spec := range genDecl.Specs {
@@ -225,6 +233,7 @@ func isContextType(typ types.Type) bool {
 	}
 
 	obj := named.Obj()
+
 	return obj.Pkg() != nil && obj.Pkg().Path() == "context" && obj.Name() == "Context"
 }
 

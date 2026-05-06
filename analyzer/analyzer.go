@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 	"strings"
@@ -17,10 +18,12 @@ const (
 	nolintAll       = "all"
 )
 
-var DefaultConfig = func_visitor.Config{
-	ErrgroupPackagePaths: []string{
-		"golang.org/x/sync/errgroup",
-	},
+func DefaultConfig() func_visitor.Config {
+	return func_visitor.Config{
+		ErrgroupPackagePaths: []string{
+			"golang.org/x/sync/errgroup",
+		},
+	}
 }
 
 func NewAnalyzerWithConfig(cfg func_visitor.Config) *analysis.Analyzer {
@@ -28,7 +31,7 @@ func NewAnalyzerWithConfig(cfg func_visitor.Config) *analysis.Analyzer {
 }
 
 func newAnalyzer(cfg func_visitor.Config) *analysis.Analyzer {
-	return &analysis.Analyzer{
+	return &analysis.Analyzer{ //nolint:exhaustruct
 		Name:     "errgroupctx",
 		Doc:      "Checks that errgroup closures use the context derived from a corresponding errgroup",
 		Run:      Run(cfg),
@@ -38,8 +41,12 @@ func newAnalyzer(cfg func_visitor.Config) *analysis.Analyzer {
 
 func Run(cfg func_visitor.Config) func(*analysis.Pass) (any, error) {
 	return func(pass *analysis.Pass) (any, error) {
+		inspector, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+		if !ok {
+			return nil, errors.New("unexpectedly type is not *inspector.Inspector")
+		}
+
 		var (
-			inspector  = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 			nodeFilter = []ast.Node{
 				(*ast.FuncDecl)(nil),
 				(*ast.AssignStmt)(nil),
